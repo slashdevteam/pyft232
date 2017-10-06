@@ -34,7 +34,6 @@ elif platform.system().startswith("Linux"):
 elif platform.system().startswith("Darwin"):
     d2xx = c.cdll.LoadLibrary("libftd2xx.dylib")
 
-
 FT_OK = 0
 FT_OPEN_BY_SERIAL_NUMBER = 1
 FT_OPEN_BY_DESCRIPTION = 2
