@@ -120,7 +120,7 @@ class D2xx(io.RawIOBase):
         self.portstr = port
         serial = c.create_string_buffer(port.encode())
         self.handle = c.c_void_p()
-        status = d2xx.FT_OpenEx(serial, FT_OPEN_BY_SERIAL_NUMBER,
+        status = d2xx.FT_OpenEx(serial, FT_OPEN_BY_DESCRIPTION,
                                 c.byref(self.handle))
         if status != FT_OK: raise D2XXException(status)
 
