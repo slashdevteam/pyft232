@@ -15,7 +15,8 @@
 #
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library.
-
+from .ft232defines import *
+import platform
 import io
 import ctypes as c
 import usb
@@ -24,15 +25,22 @@ import time
 from serial import (FIVEBITS, SIXBITS, SEVENBITS, EIGHTBITS, PARITY_NONE,
                     PARITY_EVEN, PARITY_ODD, STOPBITS_ONE, STOPBITS_TWO)
 
-for lib in ("libftdi.so", "libftdi.so.1"):
-    try:
-        ftdi = c.CDLL(lib)
-        break
-    except OSError:
-        continue
+try:
+    if platform.system().startswith("Linux"):
+        for lib in ("libftdi.so", "libftdi.so.1"):
+            try:
+                ftdi = c.cdll.LoadLibrary(lib)
+                break
+            except OSError:
+                continue
+    elif platform.system().startswith("Darwin"):
+        ftdi = c.cdll.LoadLibrary("libftdi.dylib")
+except:
+    print("Could not load libftdi library")
+    raise
 
 VENDOR = 0x0403
-PRODUCT = 0x6001
+PRODUCT = 0x6010
 
 ftdi.ftdi_new.restype = c.c_void_p
 ftdi.ftdi_usb_open_desc.argtypes = [c.c_void_p, c.c_int, c.c_int,
@@ -46,10 +54,15 @@ SIO_XON_XOFF_HS = (0x4 << 8)
 class usb_dev_handle(c.Structure):
         pass
 
+class usb_context(c.Structure):
+        pass
+
 c_ubyte_p = c.POINTER(c.c_ubyte)
 usb_dev_handle_p = c.POINTER(usb_dev_handle)
+usb_context_p = c.POINTER(usb_context)
 class FtdiContext(c.Structure):
     _fields_ = [# USB specific
+                ('usb_ctx', usb_context_p), # struct usb_dev_handle *usb_dev;
                 ('usb_dev', usb_dev_handle_p), # struct usb_dev_handle *usb_dev;
                 ('usb_read_timeout', c.c_int),
                 ('usb_write_timeout', c.c_int),
@@ -62,6 +75,7 @@ class FtdiContext(c.Structure):
                 ('readbuffer_remaining', c.c_uint),
                 ('readbuffer_chunksize', c.c_uint),
                 ('writebuffer_chunksize', c.c_uint),
+                ('max_packet_size', c.c_uint),
                 # FTDI FT2232C requirements
                 ('interface', c.c_int),
                 ('index', c.c_int),
@@ -71,8 +85,6 @@ class FtdiContext(c.Structure):
                 ('bitbang_mode', c.c_ubyte),
                 ('eeprom_size', c.c_int),
                 ('error_str', c.c_char_p),
-                ('async_usb_buffer', c.c_char_p),
-                ('async_usb_buffer_size', c.c_uint),
                 ('module_detact_mode', c.c_int)]
 
 
@@ -91,7 +103,9 @@ def list_devices():
             if dev.idVendor == VENDOR and dev.idProduct == PRODUCT:
                 try:
                     h = dev.open()
-                    serial = h.getString(dev.iSerialNumber, 20)
+                    serial = ''
+                    if dev.iSerialNumber != 0:
+                        serial = h.getString(dev.iSerialNumber, 20)
                     desc = h.getString(dev.iProduct, 100)
                     ret.append((serial, desc))
                 except usb.USBError:
@@ -112,7 +126,7 @@ class LibFtdi(io.RawIOBase):
 
     def __init__(self, port=None, baudrate=9600, bytesize=8, parity='N',
                  stopbits=1, timeout=0, xonxoff=0, rtscts=0,
-                 writeTimeout=0):
+                 writeTimeout=0, openby=FT_OPEN_BY_SERIAL_NUMBER, index=0):
         self._isopen = False
         self.portstr = port
 
@@ -123,10 +137,15 @@ class LibFtdi(io.RawIOBase):
         if self._context == 0:
             raise LibFtdiException(self._context)
 
+        description = None
+        serial = None
+        if openby == FT_OPEN_BY_SERIAL_NUMBER:
+            serial = c.create_string_buffer(port.encode())
+        elif openby == FT_OPEN_BY_DESCRIPTION:
+            description = c.create_string_buffer(port.encode())
 
-        serial = c.create_string_buffer(port.encode())
-        ret = ftdi.ftdi_usb_open_desc(self._context, VENDOR,
-                                      PRODUCT, None, serial)
+        ret = ftdi.ftdi_usb_open_desc_index(self._context, VENDOR,
+                                      PRODUCT, description, serial, index)
         if ret != 0:
             raise LibFtdiException(self._context)
 

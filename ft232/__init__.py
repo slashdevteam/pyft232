@@ -15,6 +15,7 @@
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library.
 
+from .ft232defines import *
 
 try:
     from .d2xx import list_devices
