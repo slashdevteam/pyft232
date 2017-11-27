@@ -25,18 +25,15 @@ import serial
 from serial import (FIVEBITS, SIXBITS, SEVENBITS, EIGHTBITS, PARITY_NONE,
                     PARITY_EVEN, PARITY_ODD, STOPBITS_ONE, STOPBITS_TWO)
 
-try:
-    if platform.system().startswith("Windows"):
+if platform.system().startswith("Windows"):
+    try:
         d2xx = c.windll.ftd2xx
-    elif platform.system().startswith("Linux"):
-        d2xx = c.cdll.LoadLibrary("libftd2xx.so")
-    elif platform.system().startswith("Darwin"):
-        d2xx = c.cdll.LoadLibrary("libftd2xx.dylib")
-except:
-    print("Could not load D2XX library")
-    raise
-
-
+    except AttributeError:
+        d2xx = c.cdll.ftd2xx
+elif platform.system().startswith("Linux"):
+    d2xx = c.cdll.LoadLibrary("libftd2xx.so")
+elif platform.system().startswith("Darwin"):
+    d2xx = c.cdll.LoadLibrary("libftd2xx.dylib")
 
 FT_OK = 0
 
