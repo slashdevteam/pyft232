@@ -17,6 +17,7 @@
 # License along with this library.
 #
 
+from .ft232defines import *
 import platform
 import io
 import ctypes as c
@@ -39,11 +40,7 @@ except:
     raise
 
 
-
 FT_OK = 0
-FT_OPEN_BY_SERIAL_NUMBER = 1
-FT_OPEN_BY_DESCRIPTION = 2
-FT_OPEN_BY_LOCATION = 4
 
 FT_FLOW_NONE = 0x0000
 FT_FLOW_RTS_CTS = 0x0100
@@ -116,14 +113,19 @@ class D2xx(io.RawIOBase):
                    PARITY_ODD  : 1,
                    PARITY_EVEN : 2}
 
-    def __init__(self, port=None, baudrate=9600, bytesize=8, parity='N',
+    def __init__(self, port=None, openby=FT_OPEN_BY_SERIAL_NUMBER, baudrate=9600, bytesize=8, parity='N',
                  stopbits=1, timeout=10, xonxoff=0, rtscts=0,
                  writeTimeout=10):
         self._isopen = False
         self.portstr = port
-        serial = c.create_string_buffer(port.encode())
+
+        if openby in [FT_OPEN_BY_SERIAL_NUMBER, FT_OPEN_BY_DESCRIPTION]:
+            identifier = c.create_string_buffer(port.encode())
+        else:
+            identifier = c.c_long()
+
         self.handle = c.c_void_p()
-        status = d2xx.FT_OpenEx(serial, FT_OPEN_BY_SERIAL_NUMBER,
+        status = d2xx.FT_OpenEx(identifier, openby,
                                 c.byref(self.handle))
         if status != FT_OK: raise D2XXException(status)
 
